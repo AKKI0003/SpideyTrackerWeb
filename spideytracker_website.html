@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SpideyTracker — Track Your Crew. Web Your Memories.</title>
+<meta name="description" content="SpideyTracker: private, pixel-art location sharing for your close crew. ₹20 one-time, no subscription, works on Android and iOS." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0a1128;
+    --navy2:#0d1a3f;
+    --panel:#101c40;
+    --line:#1b3a6b;
+    --cyan:#5fd8ff;
+    --cyan-dim:#3aa9d1;
+    --green:#7CFC9A;
+    --pink:#ff9ad1;
+    --red:#ff6b6b;
+    --amber:#ffc94a;
+    --ink:#dbe8ff;
+    --ink-dim:#8fa3cf;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 700px at 50% -10%, #14245c 0%, var(--navy) 55%),
+      var(--navy);
+    color:var(--ink);
+    font-family:'VT323', monospace;
+    font-size:20px;
+    line-height:1.5;
+    overflow-x:hidden;
+  }
+  .pixel{ font-family:'Press Start 2P', monospace; }
+  a{ color:var(--cyan); text-decoration:none; }
+  img{ max-width:100%; }
+
+  .scan-lines{
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:repeating-linear-gradient(
+      to bottom, rgba(95,216,255,0.025) 0px, rgba(95,216,255,0.025) 1px,
+      transparent 1px, transparent 6px);
+  }
+
+  nav{
+    position:sticky; top:0; z-index:20;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 22px;
+    background:rgba(10,17,40,0.88);
+    backdrop-filter:blur(6px);
+    border-bottom:3px solid var(--line);
+  }
+  .nav-brand{ display:flex; align-items:center; gap:10px; }
+  .nav-brand .pixel{ font-size:13px; color:var(--cyan); text-shadow:0 0 12px rgba(95,216,255,.5); }
+  .nav-links{ display:flex; gap:22px; font-size:15px; }
+  .nav-links a:hover{ color:var(--amber); }
+  .nav-toggle{ display:none; background:none; border:2px solid var(--cyan); color:var(--cyan); padding:6px 10px; border-radius:4px; font-family:'Press Start 2P'; font-size:10px; cursor:pointer; }
+  @media (max-width:720px){
+    .nav-links{
+      position:absolute; top:100%; left:0; right:0;
+      flex-direction:column; gap:0;
+      background:var(--navy2); border-bottom:3px solid var(--line);
+      max-height:0; overflow:hidden; transition:max-height .25s ease;
+    }
+    .nav-links.open{ max-height:280px; }
+    .nav-links a{ padding:14px 22px; border-top:1px solid var(--line); }
+    .nav-toggle{ display:inline-block; }
+  }
+
+  header.hero{
+    position:relative; z-index:1;
+    padding:70px 20px 50px;
+    text-align:center;
+    border-bottom:4px solid var(--line);
+    background:linear-gradient(180deg, rgba(20,36,92,.5), transparent);
+    overflow:hidden;
+  }
+  .badge{
+    display:inline-block;
+    padding:6px 14px;
+    border:2px solid var(--cyan);
+    border-radius:6px;
+    color:var(--cyan);
+    font-size:11px;
+    letter-spacing:1px;
+    background:rgba(95,216,255,0.06);
+    box-shadow:0 0 18px rgba(95,216,255,0.25);
+    margin-bottom:20px;
+    font-family:'Press Start 2P';
+  }
+  h1.pixel{
+    font-size:clamp(24px, 5.5vw, 46px);
+    color:var(--cyan);
+    text-shadow: 0 0 18px rgba(95,216,255,.45), 3px 3px 0 #000;
+    margin:0 0 16px;
+    letter-spacing:1px;
+    line-height:1.3;
+  }
+  header.hero p.sub{
+    color:var(--ink-dim);
+    font-size:23px;
+    max-width:600px;
+    margin:0 auto 30px;
+  }
+  .cta-row{ display:flex; gap:16px; justify-content:center; flex-wrap:wrap; margin-bottom:50px; }
+  .btn{
+    font-family:'Press Start 2P'; font-size:12px;
+    padding:16px 26px; border:3px solid #000; border-radius:6px;
+    cursor:pointer; box-shadow:4px 4px 0 #000; transition:transform .1s;
+    display:inline-block;
+  }
+  .btn:hover{ transform:translate(-2px,-2px); box-shadow:6px 6px 0 #000; }
+  .btn:active{ transform:translate(0,0); box-shadow:2px 2px 0 #000; }
+  .btn-primary{ background:var(--amber); color:#1a0f00; }
+  .btn-ghost{ background:transparent; color:var(--cyan); border-color:var(--cyan); box-shadow:4px 4px 0 rgba(95,216,255,.3); }
+
+  .radar-wrap{ display:flex; justify-content:center; margin-bottom:10px; }
+  .radar{ position:relative; width:190px; height:190px; }
+  .radar svg{ width:100%; height:100%; }
+  .radar .sweep{
+    position:absolute; inset:0;
+    background:conic-gradient(from 0deg, rgba(95,216,255,0) 0deg, rgba(95,216,255,.55) 18deg, rgba(95,216,255,0) 40deg);
+    border-radius:50%;
+    animation:spin 3.2s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .radar .blip{
+    position:absolute; width:6px; height:6px; background:#fff; border-radius:1px;
+    box-shadow:0 0 6px #fff;
+    animation:blink 2.6s ease-in-out infinite;
+  }
+  @keyframes blink{ 0%,100%{opacity:.2;} 50%{opacity:1;} }
+
+  .cobweb{
+    position:absolute; top:-10px; right:-10px; width:120px; height:120px;
+    opacity:.5; pointer-events:none;
+  }
+  .cobweb svg{ width:100%; height:100%; }
+  .cobweb .thread{ stroke:rgba(255,255,255,.4); stroke-width:1.5; fill:none; }
+  .cobweb .spider{
+    animation:dangle 3.4s ease-in-out infinite;
+    transform-origin:top center;
+  }
+  @keyframes dangle{ 0%,100%{ transform:rotate(-4deg); } 50%{ transform:rotate(4deg); } }
+
+  main{ position:relative; z-index:1; max-width:1000px; margin:0 auto; padding:60px 20px 40px; }
+  section{ margin-bottom:80px; }
+  .section-tag{ display:flex; align-items:center; gap:12px; margin-bottom:24px; }
+  .section-tag .dot{ width:10px;height:10px; background:var(--red); border:2px solid #000; flex-shrink:0; }
+  h2.pixel{ font-size:16px; color:var(--amber); letter-spacing:1px; margin:0; }
+  p{ color:var(--ink); font-size:21px; }
+  .lede{ font-size:24px; color:var(--ink); }
+
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media (max-width:720px){ .grid2{ grid-template-columns:1fr; } }
+
+  .piece{
+    border:2px solid var(--line); border-radius:8px;
+    padding:20px 20px 18px; background:rgba(0,0,0,0.18);
+    transition:border-color .2s, transform .2s;
+  }
+  .piece:hover{ border-color:var(--cyan-dim); transform:translateY(-2px); }
+  .piece .name{ font-family:'Press Start 2P'; font-size:11px; color:var(--cyan); margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+  .piece p{ font-size:18px; color:var(--ink-dim); margin:0; }
+  .piece .emoji{ font-size:16px; }
+
+  .panel{
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent), var(--panel);
+    border:3px solid var(--line); border-radius:10px; padding:28px;
+    box-shadow: 0 0 0 3px rgba(0,0,0,.25) inset, 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  .shot{
+    border:3px dashed var(--cyan-dim); border-radius:10px;
+    background:repeating-linear-gradient(45deg, rgba(95,216,255,0.04), rgba(95,216,255,0.04) 10px, transparent 10px, transparent 20px);
+    aspect-ratio:9/16; max-width:200px; display:flex; align-items:center; justify-content:center;
+    text-align:center; padding:14px; color:var(--cyan-dim); font-size:15px; margin:0 auto;
+  }
+  .shot-row{ display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin-top:10px; }
+  .shot-card{ text-align:center; max-width:200px; }
+  .shot-card img{
+    width:100%; border:3px solid var(--cyan-dim); border-radius:10px;
+    box-shadow:0 0 20px rgba(95,216,255,0.25), 0 10px 24px rgba(0,0,0,0.5);
+    display:block;
+  }
+  .shot-card .cap{ font-family:'Press Start 2P'; font-size:9px; color:var(--cyan-dim); margin-top:12px; letter-spacing:.5px; }
+
+  .price-tag{
+    font-family:'Press Start 2P'; font-size:34px; color:#001; background:var(--amber);
+    display:inline-block; padding:14px 26px; border:3px solid #000; border-radius:8px;
+    box-shadow:5px 5px 0 #000; margin-bottom:6px;
+  }
+  .price-tag .rupee{ font-size:20px; }
+  .price-note{ color:var(--ink-dim); font-size:17px; margin-top:0; }
+
+  .platform-grid{ display:grid; grid-template-columns:1fr 1fr; gap:22px; margin-top:30px; }
+  @media (max-width:760px){ .platform-grid{ grid-template-columns:1fr; } }
+  .platform-card{ border:3px solid var(--line); border-radius:10px; padding:24px; background:rgba(0,0,0,.2); }
+  .platform-card .plat-title{ font-family:'Press Start 2P'; font-size:13px; margin-bottom:14px; display:flex; align-items:center; gap:10px; }
+  .platform-card.android .plat-title{ color:var(--green); }
+  .platform-card.ios .plat-title{ color:var(--cyan); }
+  .steps{ padding-left:0; margin:14px 0; list-style:none; counter-reset:step; }
+  .steps li{ counter-increment:step; margin-bottom:14px; padding-left:38px; position:relative; font-size:18px; color:var(--ink-dim); }
+  .steps li::before{
+    content:counter(step); position:absolute; left:0; top:-2px;
+    width:26px; height:26px; border:2px solid var(--line); border-radius:5px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Press Start 2P'; font-size:11px; color:var(--amber); background:rgba(0,0,0,.3);
+  }
+  .req-list{ margin:10px 0 0; padding-left:0; list-style:none; font-size:16px; }
+  .req-list li{ margin-bottom:6px; }
+  .req-list a{ text-decoration:underline; }
+
+  .pill-row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+  .pill{ border:2px solid #000; border-radius:5px; padding:6px 10px; font-family:'Press Start 2P'; font-size:9px; box-shadow:2px 2px 0 #000; }
+  .pill.cyan{ background:var(--cyan); color:#001; }
+  .pill.green{ background:var(--green); color:#001; }
+  .pill.amber{ background:var(--amber); color:#001; }
+
+  .pay-box{ text-align:center; margin-top:30px; padding:26px; border:2px dashed var(--cyan-dim); border-radius:10px; background:rgba(0,0,0,.15); }
+  .pay-box .btn{ margin-top:6px; }
+  .pay-note{ font-size:15px; color:var(--ink-dim); margin-top:14px; }
+
+  .download-links{ display:none; margin-top:26px; padding:22px; border:3px solid var(--green); border-radius:10px; background:rgba(124,252,154,0.06); }
+  .download-links.visible{ display:block; }
+  .download-links a.btn{ margin:8px; }
+
+  .quote{ border-left:4px solid var(--cyan); padding-left:18px; color:var(--ink-dim); font-size:19px; font-style:italic; }
+
+  footer{
+    text-align:center; padding:44px 20px 60px; color:var(--ink-dim); font-size:15px;
+    border-top:3px solid var(--line); position:relative; z-index:1;
+  }
+  footer .pixel{ font-size:9px; color:var(--cyan-dim); letter-spacing:1px; display:block; margin-bottom:10px; }
+  footer .disclaimer{ max-width:560px; margin:0 auto 14px; font-size:14px; opacity:.75; }
+  footer a{ color:var(--cyan-dim); }
+
+  code{ background:rgba(0,0,0,.3); border:1px solid var(--line); padding:2px 6px; border-radius:4px; color:var(--green); font-family:'VT323', monospace; font-size:18px; }
+</style>
+</head>
+<body>
+<div class="scan-lines"></div>
+
+<nav>
+  <div class="nav-brand">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="#0a1128" stroke="#5fd8ff" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="#5fd8ff"/><line x1="12" y1="3" x2="12" y2="6" stroke="#5fd8ff" stroke-width="1.5"/><line x1="12" y1="18" x2="12" y2="21" stroke="#5fd8ff" stroke-width="1.5"/><line x1="3" y1="12" x2="6" y2="12" stroke="#5fd8ff" stroke-width="1.5"/><line x1="18" y1="12" x2="21" y2="12" stroke="#5fd8ff" stroke-width="1.5"/></svg>
+    <span class="pixel">SPIDEYTRACKER</span>
+  </div>
+  <button class="nav-toggle" onclick="document.getElementById('navlinks').classList.toggle('open')">MENU</button>
+  <div class="nav-links" id="navlinks">
+    <a href="#features">Features</a>
+    <a href="#screens">Screens</a>
+    <a href="#pricing">Get It</a>
+    <a href="#pricing-ios">iOS Setup</a>
+    <a href="#support">Support</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="cobweb">
+    <svg viewBox="0 0 120 120">
+      <path class="thread" d="M100 0 L60 60" />
+      <g class="spider" transform="translate(60,60)">
+        <circle cx="0" cy="6" r="6" fill="#0a1128" stroke="#5fd8ff" stroke-width="1.5"/>
+        <circle cx="0" cy="-3" r="3.5" fill="#0a1128" stroke="#5fd8ff" stroke-width="1.5"/>
+        <g stroke="#5fd8ff" stroke-width="1.2">
+          <line x1="-5" y1="2" x2="-11" y2="-2"/><line x1="-5" y1="5" x2="-12" y2="6"/>
+          <line x1="-5" y1="8" x2="-10" y2="13"/><line x1="-5" y1="10" x2="-8" y2="17"/>
+          <line x1="5" y1="2" x2="11" y2="-2"/><line x1="5" y1="5" x2="12" y2="6"/>
+          <line x1="5" y1="8" x2="10" y2="13"/><line x1="5" y1="10" x2="8" y2="17"/>
+        </g>
+      </g>
+    </svg>
+  </div>
+
+  <span class="badge">FREE TO TRY · ₹20 TO OWN IT · NO SUBSCRIPTION</span>
+  <h1 class="pixel">TRACK YOUR CREW.<br>WEB YOUR MEMORIES.</h1>
+  <p class="sub">A private, pixel-art location tracker built for one small group of people who actually trust each other — not a public network, not an ad platform. Just your party, your map, your pins.</p>
+
+  <div class="radar-wrap">
+    <div class="radar">
+      <svg viewBox="0 0 200 200">
+        <circle cx="100" cy="100" r="95" fill="rgba(0,0,0,.5)" stroke="#5fd8ff" stroke-width="2"/>
+        <g stroke="rgba(95,216,255,.3)" stroke-width="1">
+          <line x1="100" y1="5" x2="100" y2="195"/><line x1="5" y1="100" x2="195" y2="100"/>
+          <line x1="30" y1="30" x2="170" y2="170"/><line x1="170" y1="30" x2="30" y2="170"/>
+          <circle cx="100" cy="100" r="30" fill="none"/><circle cx="100" cy="100" r="60" fill="none"/>
+        </g>
+      </svg>
+      <div class="sweep"></div>
+      <div class="blip" style="top:38%; left:62%; animation-delay:.3s;"></div>
+      <div class="blip" style="top:64%; left:35%; animation-delay:1.1s;"></div>
+      <div class="blip" style="top:52%; left:70%; animation-delay:1.8s;"></div>
+    </div>
+  </div>
+
+  <div class="cta-row">
+    <a href="#pricing" class="btn btn-primary">GET SPIDEYTRACKER — ₹20</a>
+    <a href="HOW_IT_WORKS.html" class="btn btn-ghost">SEE HOW IT WORKS</a>
+  </div>
+</header>
+
+<main>
+
+  <section id="features">
+    <div class="section-tag"><div class="dot"></div><h2 class="pixel">WHAT'S INSIDE</h2></div>
+    <p class="lede">Six pieces, one map. Everything your crew actually needs, nothing you don't.</p>
+    <div class="grid2" style="margin-top:24px;">
+      <div class="piece">
+        <span class="name"><span class="emoji">🕸️</span>PARTY SYSTEM</span>
+        <p>Create or join a party with an invite code — up to 8 people. Switch between multiple parties instantly. Nothing ever leaks between them: different pins, different chat, different everything.</p>
+      </div>
+      <div class="piece">
+        <span class="name"><span class="emoji">📡</span>LIVE RADAR TRACKING</span>
+        <p>See exactly where your crew is right now on a pixel-art scanner map, with an animated sweeping radar and a distinct pulsing marker for anyone sharing live — never confused with a saved pin.</p>
+      </div>
+      <div class="piece">
+        <span class="name"><span class="emoji">📸</span>PHOTO PINS</span>
+        <p>Drop a pin, caption it, attach up to 5 photos. Tap it and watch a pixel Spider-Man descend on a web to hand you a comic-panel photo frame — not just another boring dialog box.</p>
+      </div>
+      <div class="piece">
+        <span class="name"><span class="emoji">📖</span>JOURNAL</span>
+        <p>Every memory your party has pinned, in one scrollable timeline — grouped by date, newest first, so you can actually find that one photo again.</p>
+      </div>
+      <div class="piece">
+        <span class="name"><span class="emoji">🔒</span>ENCRYPTED CHAT</span>
+        <p>Group chat, end-to-end encrypted per party. Messages live only on your own device once delivered — nothing sits around on a server waiting to be read by anyone but you.</p>
+      </div>
+      <div class="piece">
+        <span class="name"><span class="emoji">🎭</span>CUSTOM MASKS &amp; PINS</span>
+        <p>Pick your own live-location mask and your own memory-pin spider + color. Small pixel-font name tags keep everyone distinct even if two people pick the same look.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="screens">
+    <div class="section-tag"><div class="dot"></div><h2 class="pixel">WHAT IT LOOKS LIKE</h2></div>
+    <p class="lede">Real screens. Nothing staged.</p>
+    <div class="shot-row">
+      <div class="shot-card">
+        <img src="screenshots/map.png" alt="SpideyTracker live radar map with a party member's location, a saved pin, and the activity mascot" loading="lazy">
+        <div class="cap">THE MAP</div>
+      </div>
+      <div class="shot-card">
+        <img src="screenshots/pin-photos.png" alt="A pin's photo attachment view with a caption and location" loading="lazy">
+        <div class="cap">PHOTO PINS</div>
+      </div>
+      <div class="shot-card">
+        <img src="screenshots/chat.png" alt="End-to-end encrypted party chat with cobweb decoration and pixel message bubbles" loading="lazy">
+        <div class="cap">ENCRYPTED CHAT</div>
+      </div>
+      <div class="shot-card">
+        <img src="screenshots/masks.png" alt="Mask picker showing ten selectable pixel Spider-Man style masks" loading="lazy">
+        <div class="cap">PICK YOUR MASK</div>
+      </div>
+      <div class="shot-card">
+        <img src="screenshots/login.png" alt="SpideyTracker access terminal login screen" loading="lazy">
+        <div class="cap">SIGN IN</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pricing">
+    <div class="section-tag"><div class="dot"></div><h2 class="pixel">GET SPIDEYTRACKER</h2></div>
+    <p class="lede">One price. One payment. Yours forever — on however many of your own devices you want.</p>
+
+    <div style="text-align:center; margin:28px 0;">
+      <div class="price-tag"><span class="rupee">₹</span>20</div>
+      <p class="price-note">One-time. No subscription, no ads, no "premium tier." ₹20 covers hosting and keeps the servers running — that's it.</p>
+    </div>
+
+    <div class="platform-grid">
+      <div class="platform-card android">
+        <div class="plat-title">🤖 ANDROID</div>
+        <p style="font-size:17px; color:var(--ink-dim); margin-top:0;">Direct APK install. Works permanently — no re-signing, no expiry, install once and forget it.</p>
+        <ol class="steps">
+          <li>Pay ₹20 below with your email — the <code>SpideyTracker.apk</code> file arrives in your inbox automatically within a minute or two.</li>
+          <li>Open your phone's <b>Settings → Security</b> (wording varies by phone) and turn on <b>"Install unknown apps"</b> for whichever app you used to download the file (Chrome, Files, etc.)</li>
+          <li>Open the downloaded APK file and tap <b>Install</b>.</li>
+          <li>That's it — open SpideyTracker from your app drawer like any other app.</li>
+        </ol>
+        <div class="pill-row"><span class="pill green">PERMANENT</span><span class="pill green">NO RE-SIGNING</span></div>
+      </div>
+
+      <div class="platform-card ios" id="pricing-ios">
+        <div class="plat-title">🍎 iOS (iPHONE)</div>
+        <p style="font-size:17px; color:var(--ink-dim); margin-top:0;">Installed via an IPA file using a free tool called Sideloadly — no Mac, no App Store, no $99/year Apple developer fee.</p>
+        <p style="font-size:15px; color:var(--ink-dim); margin-top:-4px;"><b>Before you start</b>, install these on your Windows PC (both free, both official Microsoft):</p>
+        <ul class="req-list">
+          <li>→ <a href="https://dotnet.microsoft.com/en-us/download" target="_blank" rel="noopener">.NET Desktop Runtime</a> (needed for Sideloadly to run at all)</li>
+          <li>→ <a href="https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist" target="_blank" rel="noopener">Visual C++ Redistributable</a> (get the x64 version — needed for device communication)</li>
+          <li>→ <a href="https://www.apple.com/itunes/download/" target="_blank" rel="noopener">iTunes for Windows</a> (or "Apple Devices" from the Microsoft Store) — lets your PC talk to an iPhone over USB</li>
+        </ul>
+        <ol class="steps" style="margin-top:18px;">
+          <li>Pay ₹20 below with your email — the <code>SpideyTracker.ipa</code> file arrives in your inbox automatically within a minute or two.</li>
+          <li>Download and install <a href="https://sideloadly.io/" target="_blank" rel="noopener">Sideloadly</a> for Windows.</li>
+          <li>Plug your iPhone into your PC with a USB cable, unlock it, and tap <b>"Trust This Computer"</b> when it asks.</li>
+          <li>Open Sideloadly. It should show your iPhone's name at the top automatically.</li>
+          <li>Drag the <code>SpideyTracker.ipa</code> file into Sideloadly's window.</li>
+          <li>Type in your own Apple ID email in the box below it, then click <b>Start</b>. It'll ask for your Apple ID password — this is sent directly to Apple to sign the app, nothing is stored.</li>
+          <li>On your iPhone: <b>Settings → General → VPN &amp; Device Management</b> → tap the profile that appears → <b>Trust</b>.</li>
+          <li>Open SpideyTracker from your home screen — you're in.</li>
+        </ol>
+        <div class="pill-row"><span class="pill amber">RE-SIGN EVERY 7 DAYS</span><span class="pill cyan">FREE APPLE ID OK</span></div>
+        <p style="font-size:14px; color:var(--ink-dim); margin-top:14px;">One thing to know going in: Apple requires free-signed apps like this to be "refreshed" roughly every 7 days, or iOS will stop opening it. As long as your iPhone connects to the same WiFi as your PC about once a week, this takes a few seconds and you'll barely notice it.</p>
+      </div>
+    </div>
+
+    <div class="pay-box">
+      <p class="lede" style="margin-top:0;">Pay ₹20 — your file gets emailed to you automatically within a minute or two.</p>
+
+      <div style="max-width:320px; margin:0 auto; text-align:left;">
+        <label style="font-size:16px; color:var(--ink-dim); display:block; margin-bottom:4px;">Your email (file gets sent here)</label>
+        <input type="email" id="buyerEmail" placeholder="you@example.com" required
+               style="width:100%; padding:10px 12px; margin-bottom:16px; border-radius:6px; border:2px solid var(--line); background:rgba(0,0,0,.3); color:var(--ink); font-family:'VT323'; font-size:18px;">
+
+        <label style="font-size:16px; color:var(--ink-dim); display:block; margin-bottom:6px;">Which do you need?</label>
+        <div style="display:flex; gap:16px; margin-bottom:18px; font-size:17px;">
+          <label><input type="radio" name="platform" value="android" checked> Android (.apk)</label>
+          <label><input type="radio" name="platform" value="ios"> iPhone (.ipa)</label>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="payBtn" onclick="payNow()">PAY ₹20</button>
+      <p id="payError" style="color:var(--red); font-size:15px; display:none; margin-top:10px;"></p>
+      <p class="pay-note">Secure checkout via Razorpay — cards, UPI, netbanking, wallets all accepted. Your file arrives by email automatically once payment is confirmed; there's no download page on this site at all, by design.</p>
+    </div>
+
+    <div class="download-links visible" id="downloadLinks">
+      <p class="pixel" style="color:var(--green); font-size:14px;">HOW DELIVERY WORKS</p>
+      <p style="font-size:17px; color:var(--ink-dim);">The moment your payment is confirmed, an automatic email goes out to the address you enter above with a private, one-time download link for your platform — usually within a minute or two. Didn't get it? Check spam first, then email <a href="mailto:aakarshansharma46@gmail.com">aakarshansharma46@gmail.com</a> and mention your payment ID.</p>
+    </div>
+  </section>
+
+  <section id="support">
+    <div class="section-tag"><div class="dot"></div><h2 class="pixel">SUPPORT</h2></div>
+    <div class="panel">
+      <p style="margin-top:0;">Something not working? Install stuck? Payment went through but no download? Just email — a real person (not a bot) reads every message here.</p>
+      <p class="lede" style="text-align:center; margin:20px 0 6px;">
+        <a href="mailto:aakarshansharma46@gmail.com" class="btn btn-primary" style="font-size:13px;">aakarshansharma46@gmail.com</a>
+      </p>
+      <p class="quote">Tip: if something's not working, include what device you're on and a screenshot of the error — it gets you a fix much faster than "it doesn't work."</p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <span class="pixel">SPIDEYTRACKER</span>
+  <p class="disclaimer">SpideyTracker is an independent, fan-made pixel-art tracking app built for personal use among friends. It is not affiliated with, endorsed by, or associated with Marvel, Sony Pictures, Disney, or any Spider-Man film, comic, or franchise. All artwork is original.</p>
+  <p>© 2026 SpideyTracker. Made with too much coffee and a Firestore free tier.</p>
+</footer>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+  // ============================================================
+  // BACKEND SETUP — read this before going live
+  // ============================================================
+  // This page calls YOUR OWN Vercel notify-server (create-order.js)
+  // to start a payment, then Razorpay's webhook (payment-webhook.js,
+  // also in notify-server) verifies it server-side and emails the
+  // buyer their file directly. Nothing about the download link ever
+  // touches this HTML file — see those two files' own comments for
+  // full setup steps (Razorpay account, B2 upload paths, env vars).
+  //
+  // Replace this with your actual deployed notify-server URL:
+  const NOTIFY_SERVER_URL = "https://spideytrack.vercel.app";
+  // ============================================================
+
+  async function payNow() {
+    const emailInput = document.getElementById('buyerEmail');
+    const email = emailInput.value.trim();
+    const platform = document.querySelector('input[name="platform"]:checked').value;
+    const errorEl = document.getElementById('payError');
+    const payBtn = document.getElementById('payBtn');
+    errorEl.style.display = 'none';
+
+    if (!email || !email.includes('@')) {
+      errorEl.textContent = 'Enter a valid email first — that\'s where your file gets sent.';
+      errorEl.style.display = 'block';
+      emailInput.focus();
+      return;
+    }
+
+    payBtn.textContent = 'STARTING...';
+    payBtn.disabled = true;
+
+    try {
+      const orderRes = await fetch(NOTIFY_SERVER_URL + '/api/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, platform }),
+      });
+      const order = await orderRes.json();
+
+      if (!orderRes.ok) {
+        throw new Error(order.error || 'Could not start payment.');
+      }
+
+      const options = {
+        key: order.keyId,
+        amount: order.amount,
+        currency: 'INR',
+        name: 'SpideyTracker',
+        description: 'SpideyTracker — one-time app purchase',
+        order_id: order.orderId,
+        prefill: { email: email },
+        handler: function (response) {
+          // This only ever confirms the checkout MODAL closed
+          // successfully — it is cosmetic UX, not the real trust
+          // check. The webhook (server-side, signature-verified) is
+          // what actually decides whether to send the file. This is
+          // exactly why this handler does not, and should not, ever
+          // reveal a download link.
+          document.getElementById('downloadLinks').scrollIntoView({ behavior: 'smooth' });
+        },
+        modal: {
+          ondismiss: function () {
+            payBtn.textContent = 'PAY ₹20';
+            payBtn.disabled = false;
+          }
+        },
+        theme: { color: '#5fd8ff' }
+      };
+
+      const rzp = new Razorpay(options);
+      rzp.open();
+      payBtn.textContent = 'PAY ₹20';
+      payBtn.disabled = false;
+    } catch (err) {
+      errorEl.textContent = err.message || 'Something went wrong — please try again.';
+      errorEl.style.display = 'block';
+      payBtn.textContent = 'PAY ₹20';
+      payBtn.disabled = false;
+    }
+  }
+</script>
+
+</body>
+</html>
